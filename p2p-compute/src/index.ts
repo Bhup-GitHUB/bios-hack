@@ -1,9 +1,5 @@
-import { Hono } from 'hono'
+// Main entry point - re-export modules for library usage
+export * from './server.js';
+export * from './P2PClient.js';
+export * from './types.js';
 
-const app = new Hono()
-
-app.get('/', (c) => {
-  return c.text('Hello Hono!')
-})
-
-export default app

@@ -82,7 +82,7 @@ export class P2PClient {
       "ice-candidate",
       ({ from, candidate }: { from: string; candidate: any }) => {
         if (this.peers.has(from)) {
-          this.peers.get(from)!.signal({ candidate });
+          this.peers.get(from)!.signal(candidate as any);
         }
       }
     );

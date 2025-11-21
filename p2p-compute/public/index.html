@@ -456,6 +456,7 @@ function(x) { return x * x; }</textarea
       let isConnected = false;
       let selectedPeerId = null;
       let receivedFiles = [];
+      let latestPeersList = [];
 
       const statusIndicator = document.getElementById("statusIndicator");
       const statusText = document.getElementById("statusText");
@@ -536,6 +537,7 @@ function(x) { return x * x; }</textarea
         });
 
         socket.on("peers-update", (peersList) => {
+          latestPeersList = peersList;
           updatePeersList(peersList);
         });
 
@@ -544,9 +546,25 @@ function(x) { return x * x; }</textarea
           connectToPeer(peerId, true);
         });
 
+        socket.on("room-peers", (peerIds) => {
+          addLog(`Found ${peerIds.length} existing peers in room`);
+          peerIds.forEach((peerId) => {
+            connectToPeer(peerId, false);
+          });
+        });
+
         socket.on("signal", ({ from, signal }) => {
           if (peers.has(from)) {
             peers.get(from).signal(signal);
+          } else {
+            // Peer not in map yet, create connection as receiver
+            connectToPeer(from, false);
+            // Retry signal after short delay
+            setTimeout(() => {
+              if (peers.has(from)) {
+                peers.get(from).signal(signal);
+              }
+            }, 100);
           }
         });
 
@@ -609,10 +627,12 @@ function(x) { return x * x; }</textarea
         }
 
         peersList.innerHTML = peersArray
-          .map(
-            (peer) => `
+          .map((peer) => {
+            const peerConnection = peers.get(peer.id);
+            const isConnected = peerConnection && peerConnection.connected;
+            return `
                 <div class="peer-card ${
-                  peers.has(peer.id) ? "connected" : ""
+                  isConnected ? "connected" : ""
                 }" data-peer-id="${peer.id}">
                     <strong>${peer.name}</strong><br>
                     <small style="color: #999;">${peer.id.substring(
@@ -621,16 +641,14 @@ function(x) { return x * x; }</textarea
                     )}...</small>
                     <div style="margin-top: 8px;">
                       <span style="font-size: 12px; color: ${
-                        peers.has(peer.id) ? "#4caf50" : "#999"
+                        isConnected ? "#4caf50" : "#ff9800"
                       };">
-                        ${
-                          peers.has(peer.id) ? "● Connected" : "○ Not Connected"
-                        }
+                        ${isConnected ? "● Connected (P2P)" : "○ Connecting..."}
                       </span>
                     </div>
                 </div>
-            `
-          )
+            `;
+          })
           .join("");
 
         // Update peer selection dropdown
@@ -666,14 +684,10 @@ function(x) { return x * x; }</textarea
         });
 
         peer.on("connect", () => {
-          console.log("Peer connected:", peerId);
-          addLog(`Direct P2P connection established with ${peerId}`);
-          updatePeersList(
-            Array.from(peers.values()).map((p) => ({
-              id: p.peerId,
-              name: p.peerName || "Anonymous",
-            }))
-          );
+          console.log("✅ WebRTC P2P connection established:", peerId);
+          addLog(`✅ Direct P2P connection established with ${peerId}`);
+          // Refresh UI to show connection status
+          updatePeersList(latestPeersList);
         });
 
         peer.on("data", (data) => {
@@ -687,6 +701,8 @@ function(x) { return x * x; }</textarea
         peer.on("close", () => {
           console.log("Peer connection closed:", peerId);
           peers.delete(peerId);
+          // Refresh UI to show connection status
+          updatePeersList(latestPeersList);
         });
 
         peers.set(peerId, peer);
@@ -735,8 +751,16 @@ function(x) { return x * x; }</textarea
           return;
         }
 
-        if (!peers.has(selectedPeer)) {
-          alert("Selected peer is not connected!");
+        const peer = peers.get(selectedPeer);
+        if (!peer || !peer.connected) {
+          alert(
+            "Selected peer is not connected! Please wait for the WebRTC connection to establish."
+          );
+          addLog(
+            `Peer ${selectedPeer} - Has peer: ${!!peer}, Connected: ${
+              peer?.connected || false
+            }`
+          );
           return;
         }
 
@@ -767,12 +791,18 @@ function(x) { return x * x; }</textarea
         const file = fileItem.fileData;
         const selectedPeer = selectedPeerEl.value;
 
-        if (!peers.has(selectedPeer)) {
-          alert("Peer not connected!");
+        const peer = peers.get(selectedPeer);
+        if (!peer || !peer.connected) {
+          alert(
+            "Peer not connected! Please wait for the WebRTC connection to establish."
+          );
+          addLog(
+            `Cannot send - Peer ${selectedPeer} connected: ${
+              peer?.connected || false
+            }`
+          );
           return;
         }
-
-        const peer = peers.get(selectedPeer);
         const progressBar = document.getElementById(`progress-${index}`);
 
         // Send file metadata
