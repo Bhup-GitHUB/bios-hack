@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>P2P File Sharing & Compute Platform</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/simple-peer/9.11.1/simplepeer.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        color: white;
+        text-align: center;
+        margin-bottom: 30px;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+      }
+
+      .card {
+        background: white;
+        border-radius: 12px;
+        padding: 25px;
+        margin-bottom: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      }
+
+      .card h2 {
+        color: #667eea;
+        margin-bottom: 15px;
+        font-size: 1.5em;
+      }
+
+      .status {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 15px;
+      }
+
+      .status-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #f44336;
+      }
+
+      .status-indicator.connected {
+        background: #4caf50;
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+
+      .input-group {
+        margin-bottom: 15px;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 5px;
+        color: #555;
+        font-weight: 600;
+      }
+
+      input,
+      textarea {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 14px;
+        transition: border-color 0.3s;
+      }
+
+      input:focus,
+      textarea:focus {
+        outline: none;
+        border-color: #667eea;
+      }
+
+      textarea {
+        min-height: 100px;
+        font-family: monospace;
+        resize: vertical;
+      }
+
+      button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+        margin-right: 10px;
+        margin-bottom: 10px;
+      }
+
+      button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+      }
+
+      button:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      button.secondary {
+        background: linear-gradient(135deg, #43a047 0%, #66bb6a 100%);
+      }
+
+      button.danger {
+        background: linear-gradient(135deg, #e53935 0%, #ef5350 100%);
+      }
+
+      .peers-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 10px;
+        margin-top: 15px;
+      }
+
+      .peer-card {
+        background: #f5f5f5;
+        padding: 12px;
+        border-radius: 8px;
+        border-left: 4px solid #667eea;
+        cursor: pointer;
+        transition: transform 0.2s;
+      }
+
+      .peer-card:hover {
+        transform: translateX(5px);
+      }
+
+      .peer-card.connected {
+        border-left-color: #4caf50;
+      }
+
+      .peer-card.selected {
+        background: #e8f5e9;
+        border-left-color: #2e7d32;
+      }
+
+      .peer-actions {
+        margin-top: 10px;
+        display: flex;
+        gap: 5px;
+      }
+
+      .peer-actions button {
+        font-size: 12px;
+        padding: 6px 12px;
+        margin: 0;
+      }
+
+      .results {
+        background: #f9f9f9;
+        padding: 15px;
+        border-radius: 8px;
+        margin-top: 15px;
+        max-height: 300px;
+        overflow-y: auto;
+      }
+
+      .result-item {
+        background: white;
+        padding: 10px;
+        margin-bottom: 10px;
+        border-radius: 6px;
+        border-left: 3px solid #4caf50;
+      }
+
+      .result-item strong {
+        color: #667eea;
+      }
+
+      .code-example {
+        background: #2d2d2d;
+        color: #f8f8f2;
+        padding: 15px;
+        border-radius: 8px;
+        font-family: monospace;
+        font-size: 12px;
+        overflow-x: auto;
+        margin-top: 10px;
+      }
+
+      .file-drop-zone {
+        border: 2px dashed #667eea;
+        border-radius: 8px;
+        padding: 40px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s;
+        margin-top: 15px;
+      }
+
+      .file-drop-zone:hover {
+        background: #f5f5f5;
+        border-color: #764ba2;
+      }
+
+      .file-drop-zone.dragover {
+        background: #e8eaf6;
+        border-color: #4caf50;
+      }
+
+      .file-list {
+        margin-top: 15px;
+      }
+
+      .file-item {
+        background: #f5f5f5;
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .file-info {
+        flex: 1;
+      }
+
+      .file-name {
+        font-weight: 600;
+        color: #333;
+      }
+
+      .file-size {
+        font-size: 12px;
+        color: #999;
+      }
+
+      .progress-bar {
+        width: 100%;
+        height: 8px;
+        background: #e0e0e0;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-top: 8px;
+      }
+
+      .progress-fill {
+        height: 100%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        transition: width 0.3s;
+      }
+
+      .network-info {
+        background: #e8f5e9;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 15px;
+      }
+
+      .network-info code {
+        background: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-family: monospace;
+      }
+
+      .tabs {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+
+      .tab {
+        padding: 10px 20px;
+        background: white;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s;
+      }
+
+      .tab:hover {
+        background: #f5f5f5;
+      }
+
+      .tab.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+      }
+
+      .tab-content {
+        display: none;
+      }
+
+      .tab-content.active {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🌐 P2P File Sharing & Compute Platform</h1>
+
+      <div class="card">
+        <h2>Connection Status</h2>
+        <div class="network-info" id="networkInfo" style="display: none;">
+          <strong>📡 Network Address:</strong> <code id="serverUrl">http://localhost:3000</code><br>
+          <small>Share this URL with devices on your network to connect!</small>
+        </div>
+        <div class="status">
+          <div class="status-indicator" id="statusIndicator"></div>
+          <span id="statusText">Disconnected</span>
+        </div>
+        <div class="input-group">
+          <label for="serverUrl">Server URL:</label>
+          <input
+            type="text"
+            id="serverUrlInput"
+            placeholder="http://localhost:3000"
+            value="http://localhost:3000"
+          />
+        </div>
+        <div class="input-group">
+          <label for="peerName">Your Name:</label>
+          <input
+            type="text"
+            id="peerName"
+            placeholder="Enter your name"
+            value="Peer-1"
+          />
+        </div>
+        <button id="connectBtn">Connect to Network</button>
+      </div>
+
+      <div class="card">
+        <h2>Connected Peers (<span id="peerCount">0</span>)</h2>
+        <div class="peers-list" id="peersList">
+          <p style="color: #999">No peers connected</p>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <div class="tab active" data-tab="files">📁 File Sharing</div>
+        <div class="tab" data-tab="compute">⚡ Compute Tasks</div>
+      </div>
+
+      <div id="filesTab" class="tab-content active">
+        <div class="card">
+          <h2>Send Files to Peers</h2>
+          <p style="color: #666; margin-bottom: 15px">
+            Select a peer and drag & drop files or click to select files to send.
+          </p>
+          <div class="input-group">
+            <label>Selected Peer:</label>
+            <select id="selectedPeer" style="width: 100%; padding: 12px; border-radius: 8px; border: 2px solid #e0e0e0;">
+              <option value="">-- Select a peer --</option>
+            </select>
+          </div>
+          <div class="file-drop-zone" id="fileDropZone">
+            <p style="font-size: 24px; margin-bottom: 10px;">📁</p>
+            <p>Drag & drop files here or click to select</p>
+            <input type="file" id="fileInput" multiple style="display: none;" />
+          </div>
+          <div class="file-list" id="fileList"></div>
+        </div>
+
+        <div class="card">
+          <h2>Received Files</h2>
+          <div class="file-list" id="receivedFiles">
+            <p style="color: #999">No files received yet</p>
+          </div>
+        </div>
+      </div>
+
+      <div id="computeTab" class="tab-content">
+        <div class="card">
+          <h2>Submit Compute Task</h2>
+          <p style="color: #666; margin-bottom: 15px">
+            Submit a computational task to be distributed across connected peers.
+          </p>
+          <div class="input-group">
+            <label for="taskData">Task Data (JSON Array):</label>
+            <input
+              type="text"
+              id="taskData"
+              placeholder="[1, 2, 3, 4, 5]"
+              value="[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]"
+            />
+          </div>
+          <div class="input-group">
+            <label for="taskFunction">Task Function:</label>
+            <textarea
+              id="taskFunction"
+              placeholder="function(x) { return x * 2; }"
+            >
+function(x) { return x * x; }</textarea
+            >
+          </div>
+          <button id="submitTaskBtn" disabled>Submit Task</button>
+
+          <div class="code-example">
+            // Example: Calculate squares
+            data: [1, 2, 3, 4, 5]
+            function: function(x) { return x * x; }
+            result: [1, 4, 9, 16, 25]
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Task Results</h2>
+          <div class="results" id="results">
+            <p style="color: #999">No results yet</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let socket = null;
+      let peers = new Map();
+      let isConnected = false;
+      let selectedPeerId = null;
+      let receivedFiles = [];
+
+      const statusIndicator = document.getElementById("statusIndicator");
+      const statusText = document.getElementById("statusText");
+      const connectBtn = document.getElementById("connectBtn");
+      const submitTaskBtn = document.getElementById("submitTaskBtn");
+      const peersList = document.getElementById("peersList");
+      const results = document.getElementById("results");
+      const fileDropZone = document.getElementById("fileDropZone");
+      const fileInput = document.getElementById("fileInput");
+      const fileList = document.getElementById("fileList");
+      const receivedFilesEl = document.getElementById("receivedFiles");
+      const selectedPeerEl = document.getElementById("selectedPeer");
+      const networkInfo = document.getElementById("networkInfo");
+      const serverUrlEl = document.getElementById("serverUrl");
+      const peerCount = document.getElementById("peerCount");
+
+      // Tab switching
+      document.querySelectorAll(".tab").forEach((tab) => {
+        tab.addEventListener("click", () => {
+          document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
+          document.querySelectorAll(".tab-content").forEach((c) => c.classList.remove("active"));
+          tab.classList.add("active");
+          const tabName = tab.getAttribute("data-tab");
+          document.getElementById(tabName + "Tab").classList.add("active");
+        });
+      });
+
+      // File drag and drop
+      fileDropZone.addEventListener("click", () => fileInput.click());
+      fileDropZone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        fileDropZone.classList.add("dragover");
+      });
+      fileDropZone.addEventListener("dragleave", () => {
+        fileDropZone.classList.remove("dragover");
+      });
+      fileDropZone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        fileDropZone.classList.remove("dragover");
+        handleFiles(e.dataTransfer.files);
+      });
+      fileInput.addEventListener("change", (e) => {
+        handleFiles(e.target.files);
+      });
+
+      connectBtn.addEventListener("click", () => {
+        if (!isConnected) {
+          connect();
+        } else {
+          disconnect();
+        }
+      });
+
+      submitTaskBtn.addEventListener("click", submitTask);
+
+      function connect() {
+        const peerName = document.getElementById("peerName").value || "Anonymous";
+        const serverUrl = document.getElementById("serverUrlInput").value || "http://localhost:3000";
+        
+        socket = io(serverUrl);
+
+        socket.on("connect", () => {
+          console.log("Connected to server");
+          isConnected = true;
+          updateStatus(true);
+          socket.emit("register", { name: peerName });
+          socket.emit("join-room", "default-room");
+          submitTaskBtn.disabled = false;
+          networkInfo.style.display = "block";
+          serverUrlEl.textContent = serverUrl;
+        });
+
+        socket.on("peers-update", (peersList) => {
+          updatePeersList(peersList);
+        });
+
+        socket.on("peer-joined", (peerId) => {
+          addLog(`Peer joined: ${peerId}`);
+          connectToPeer(peerId, true);
+        });
+
+        socket.on("signal", ({ from, signal }) => {
+          if (peers.has(from)) {
+            peers.get(from).signal(signal);
+          }
+        });
+
+        socket.on("task-assigned", (task) => {
+          addLog(`Task assigned: ${task.taskId}`);
+          processTask(task);
+        });
+
+        socket.on("task-completed", (result) => {
+          addLog(`Task completed: ${result.taskId}`);
+          displayResult(result);
+        });
+
+        socket.on("peer-left", (peerId) => {
+          addLog(`Peer left: ${peerId}`);
+          if (peers.has(peerId)) {
+            peers.get(peerId).destroy();
+            peers.delete(peerId);
+          }
+        });
+
+        socket.on("disconnect", () => {
+          isConnected = false;
+          updateStatus(false);
+          submitTaskBtn.disabled = true;
+          networkInfo.style.display = "none";
+        });
+      }
+
+      function disconnect() {
+        if (socket) {
+          socket.disconnect();
+          peers.forEach((peer) => peer.destroy());
+          peers.clear();
+          isConnected = false;
+          updateStatus(false);
+          submitTaskBtn.disabled = true;
+          networkInfo.style.display = "none";
+        }
+      }
+
+      function updateStatus(connected) {
+        statusIndicator.className = "status-indicator" + (connected ? " connected" : "");
+        statusText.textContent = connected ? "Connected" : "Disconnected";
+        connectBtn.textContent = connected ? "Disconnect" : "Connect to Network";
+      }
+
+      function updatePeersList(peersArray) {
+        peerCount.textContent = peersArray.length;
+        
+        if (peersArray.length === 0) {
+          peersList.innerHTML = '<p style="color: #999;">No peers connected</p>';
+          selectedPeerEl.innerHTML = '<option value="">-- No peers available --</option>';
+          return;
+        }
+
+        peersList.innerHTML = peersArray
+          .map(
+            (peer) => `
+                <div class="peer-card ${peers.has(peer.id) ? "connected" : ""}" data-peer-id="${peer.id}">
+                    <strong>${peer.name}</strong><br>
+                    <small style="color: #999;">${peer.id.substring(0, 8)}...</small>
+                    <div style="margin-top: 8px;">
+                      <span style="font-size: 12px; color: ${peers.has(peer.id) ? '#4caf50' : '#999'};">
+                        ${peers.has(peer.id) ? '● Connected' : '○ Not Connected'}
+                      </span>
+                    </div>
+                </div>
+            `
+          )
+          .join("");
+
+        // Update peer selection dropdown
+        selectedPeerEl.innerHTML = '<option value="">-- Select a peer --</option>' +
+          peersArray.map(peer => `<option value="${peer.id}">${peer.name} (${peer.id.substring(0, 8)}...)</option>`).join("");
+      }
+
+      function connectToPeer(peerId, initiator) {
+        if (peers.has(peerId)) return;
+
+        const peer = new SimplePeer({
+          initiator: initiator,
+          trickle: true,
+          config: {
+            iceServers: [
+              { urls: "stun:stun.l.google.com:19302" },
+              { urls: "stun:global.stun.twilio.com:3478" },
+            ],
+          },
+        });
+
+        peer.on("signal", (signal) => {
+          socket.emit("signal", { to: peerId, signal });
+        });
+
+        peer.on("connect", () => {
+          console.log("Peer connected:", peerId);
+          addLog(`Direct P2P connection established with ${peerId}`);
+          updatePeersList(Array.from(peers.values()).map(p => ({ id: p.peerId, name: p.peerName || 'Anonymous' })));
+        });
+
+        peer.on("data", (data) => {
+          handlePeerData(peerId, data);
+        });
+
+        peer.on("error", (err) => {
+          console.error("Peer error:", err);
+        });
+
+        peer.on("close", () => {
+          console.log("Peer connection closed:", peerId);
+          peers.delete(peerId);
+        });
+
+        peers.set(peerId, peer);
+      }
+
+      function handlePeerData(peerId, data) {
+        try {
+          const message = JSON.parse(data.toString());
+          
+          if (message.type === 'file-metadata') {
+            handleFileOffer(peerId, message.fileInfo);
+          } else if (message.type === 'file-chunk') {
+            // Handle file chunk (simplified for demo)
+            console.log('Received file chunk:', message);
+          } else {
+            handlePeerMessage(peerId, message);
+          }
+        } catch (err) {
+          console.error('Error handling peer data:', err);
+        }
+      }
+
+      function handleFileOffer(peerId, fileInfo) {
+        const accept = confirm(`${peerId} wants to send you a file:\n${fileInfo.name} (${formatFileSize(fileInfo.size)})\n\nAccept?`);
+        
+        if (accept) {
+          addLog(`Accepting file ${fileInfo.name} from ${peerId}`);
+          // In a full implementation, you'd handle the file transfer here
+        } else {
+          addLog(`Rejected file ${fileInfo.name} from ${peerId}`);
+        }
+      }
+
+      function handlePeerMessage(peerId, message) {
+        console.log("Message from peer:", message);
+      }
+
+      function handleFiles(files) {
+        const selectedPeer = selectedPeerEl.value;
+        if (!selectedPeer) {
+          alert("Please select a peer to send files to!");
+          return;
+        }
+
+        if (!peers.has(selectedPeer)) {
+          alert("Selected peer is not connected!");
+          return;
+        }
+
+        fileList.innerHTML = "";
+        
+        Array.from(files).forEach((file, index) => {
+          const fileItem = document.createElement("div");
+          fileItem.className = "file-item";
+          fileItem.innerHTML = `
+            <div class="file-info">
+              <div class="file-name">📄 ${file.name}</div>
+              <div class="file-size">${formatFileSize(file.size)}</div>
+              <div class="progress-bar">
+                <div class="progress-fill" id="progress-${index}" style="width: 0%"></div>
+              </div>
+            </div>
+            <button onclick="sendFile(${index})" class="secondary">Send</button>
+          `;
+          fileList.appendChild(fileItem);
+          
+          // Store file for sending
+          fileItem.fileData = file;
+        });
+      }
+
+      window.sendFile = function(index) {
+        const fileItem = fileList.children[index];
+        const file = fileItem.fileData;
+        const selectedPeer = selectedPeerEl.value;
+        
+        if (!peers.has(selectedPeer)) {
+          alert("Peer not connected!");
+          return;
+        }
+
+        const peer = peers.get(selectedPeer);
+        const progressBar = document.getElementById(`progress-${index}`);
+
+        // Send file metadata
+        const fileInfo = {
+          name: file.name,
+          size: file.size,
+          type: file.type,
+        };
+
+        peer.send(JSON.stringify({
+          type: 'file-metadata',
+          fileInfo: fileInfo
+        }));
+
+        // Read and send file
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          // Simulate progress
+          let progress = 0;
+          const interval = setInterval(() => {
+            progress += 10;
+            progressBar.style.width = progress + '%';
+            
+            if (progress >= 100) {
+              clearInterval(interval);
+              addLog(`File ${file.name} sent to peer!`);
+              
+              // In a real implementation, you'd chunk and send the actual file data
+              // peer.send(e.result);
+            }
+          }, 100);
+        };
+        reader.readAsArrayBuffer(file);
+      };
+
+      function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+      }
+
+      function submitTask() {
+        try {
+          const data = JSON.parse(document.getElementById("taskData").value);
+          const fnString = document.getElementById("taskFunction").value;
+
+          const taskId = generateId();
+          addLog(`Submitting task: ${taskId}`);
+
+          socket.emit("submit-task", {
+            id: taskId,
+            data: data,
+            function: fnString,
+          });
+
+          setTimeout(() => {
+            const fn = eval(`(${fnString})`);
+            const result = data.map(fn);
+            displayResult({
+              taskId: taskId,
+              result: result,
+              processedBy: "local",
+            });
+          }, 1000);
+        } catch (err) {
+          alert("Error: " + err.message);
+        }
+      }
+
+      function processTask(task) {
+        try {
+          const fn = eval(`(${task.data.function})`);
+          const result = task.data.data.map(fn);
+
+          socket.emit("task-result", {
+            taskId: task.taskId,
+            result: result,
+            to: task.from,
+          });
+        } catch (err) {
+          console.error("Error processing task:", err);
+        }
+      }
+
+      function displayResult(result) {
+        if (results.querySelector("p")) {
+          results.innerHTML = "";
+        }
+
+        const resultDiv = document.createElement("div");
+        resultDiv.className = "result-item";
+        resultDiv.innerHTML = `
+                <strong>Task ${result.taskId.substring(0, 8)}...</strong><br>
+                Result: <code>${JSON.stringify(result.result)}</code><br>
+                <small style="color: #999;">Processed by: ${
+                  result.processedBy || "peer"
+                }</small>
+            `;
+        results.insertBefore(resultDiv, results.firstChild);
+      }
+
+      function addLog(message) {
+        console.log(message);
+        const timestamp = new Date().toLocaleTimeString();
+        console.log(`[${timestamp}] ${message}`);
+      }
+
+      function generateId() {
+        return (
+          Math.random().toString(36).substring(2) + Date.now().toString(36)
+        );
+      }
+    </script>
+  </body>
+</html>
