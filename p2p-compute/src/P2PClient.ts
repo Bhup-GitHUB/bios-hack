@@ -124,6 +124,7 @@ export class P2PClient {
               receivedChunks: 0,
               progress: 0,
               fromPeer: from,
+              startedAt: new Date(),
             });
           } else {
             this.socket.emit("file-reject", { to: from });
