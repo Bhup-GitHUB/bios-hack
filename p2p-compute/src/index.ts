@@ -1,5 +1,9 @@
-// Main entry point - re-export the server
-export * from './server.js';
-export * from './P2PClient.js';
-export * from './types.js';
+import { Hono } from 'hono'
 
+const app = new Hono()
+
+app.get('/', (c) => {
+  return c.text('Hello Hono!')
+})
+
+export default app
