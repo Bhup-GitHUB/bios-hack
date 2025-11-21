@@ -1,6 +1,6 @@
-import SimplePeer from 'simple-peer';
-import { io, Socket } from 'socket.io-client';
-import { v4 as uuidv4 } from 'uuid';
+import SimplePeer from "simple-peer";
+import { io, Socket } from "socket.io-client";
+import { v4 as uuidv4 } from "uuid";
 import {
   PeerInfo,
   Task,
@@ -10,7 +10,7 @@ import {
   FileTransfer,
   SignalData,
   RegisterData,
-} from './types.js';
+} from "./types.js";
 
 // File transfer chunk size (256KB)
 const CHUNK_SIZE = 256 * 1024;
@@ -20,16 +20,19 @@ export class P2PClient {
   private peers: Map<string, SimplePeer.Instance>;
   private pendingTasks: Map<string, { data: any; fn: any }>;
   private fileTransfers: Map<string, FileTransfer>;
-  
+
   // Callbacks
   public onTaskAssigned: ((task: Task) => void) | null = null;
   public onTaskCompleted: ((result: TaskResult) => void) | null = null;
   public onPeerConnected: ((peerId: string) => void) | null = null;
   public onFileReceived: ((file: File, fromPeer: string) => void) | null = null;
-  public onFileProgress: ((fileName: string, progress: number) => void) | null = null;
-  public onFileOffer: ((fromPeer: string, fileInfo: FileMetadata) => Promise<boolean>) | null = null;
+  public onFileProgress: ((fileName: string, progress: number) => void) | null =
+    null;
+  public onFileOffer:
+    | ((fromPeer: string, fileInfo: FileMetadata) => Promise<boolean>)
+    | null = null;
 
-  constructor(serverUrl: string = 'http://localhost:3000') {
+  constructor(serverUrl: string = "http://localhost:3000") {
     this.socket = io(serverUrl);
     this.peers = new Map();
     this.pendingTasks = new Map();
@@ -39,58 +42,67 @@ export class P2PClient {
   }
 
   private setupSocketListeners(): void {
-    this.socket.on('connect', () => {
-      console.log('✅ Connected to signaling server');
+    this.socket.on("connect", () => {
+      console.log("✅ Connected to signaling server");
       this.register();
     });
 
-    this.socket.on('peers-update', (peersList: PeerInfo[]) => {
-      console.log('👥 Peers update:', peersList);
+    this.socket.on("peers-update", (peersList: PeerInfo[]) => {
+      console.log("👥 Peers update:", peersList);
     });
 
-    this.socket.on('peer-joined', (peerId: string) => {
+    this.socket.on("peer-joined", (peerId: string) => {
       console.log(`🤝 Peer joined: ${peerId}`);
       this.connectToPeer(peerId, true);
     });
 
-    this.socket.on('signal', ({ from, signal }: { from: string; signal: any }) => {
-      if (this.peers.has(from)) {
-        this.peers.get(from)!.signal(signal);
+    this.socket.on(
+      "signal",
+      ({ from, signal }: { from: string; signal: any }) => {
+        if (this.peers.has(from)) {
+          this.peers.get(from)!.signal(signal);
+        }
       }
-    });
+    );
 
-    this.socket.on('offer', ({ from, offer }: { from: string; offer: any }) => {
+    this.socket.on("offer", ({ from, offer }: { from: string; offer: any }) => {
       this.connectToPeer(from, false, offer);
     });
 
-    this.socket.on('answer', ({ from, answer }: { from: string; answer: any }) => {
-      if (this.peers.has(from)) {
-        this.peers.get(from)!.signal(answer);
+    this.socket.on(
+      "answer",
+      ({ from, answer }: { from: string; answer: any }) => {
+        if (this.peers.has(from)) {
+          this.peers.get(from)!.signal(answer);
+        }
       }
-    });
+    );
 
-    this.socket.on('ice-candidate', ({ from, candidate }: { from: string; candidate: any }) => {
-      if (this.peers.has(from)) {
-        this.peers.get(from)!.signal({ candidate });
+    this.socket.on(
+      "ice-candidate",
+      ({ from, candidate }: { from: string; candidate: any }) => {
+        if (this.peers.has(from)) {
+          this.peers.get(from)!.signal({ candidate });
+        }
       }
-    });
+    );
 
-    this.socket.on('task-assigned', (task: Task) => {
-      console.log('📋 Task assigned:', task.taskId);
+    this.socket.on("task-assigned", (task: Task) => {
+      console.log("📋 Task assigned:", task.taskId);
       if (this.onTaskAssigned) {
         this.onTaskAssigned(task);
       }
     });
 
-    this.socket.on('task-completed', (result: TaskResult) => {
-      console.log('✅ Task completed:', result.taskId);
+    this.socket.on("task-completed", (result: TaskResult) => {
+      console.log("✅ Task completed:", result.taskId);
       if (this.onTaskCompleted) {
         this.onTaskCompleted(result);
       }
       this.pendingTasks.delete(result.taskId);
     });
 
-    this.socket.on('peer-left', (peerId: string) => {
+    this.socket.on("peer-left", (peerId: string) => {
       console.log(`👋 Peer left: ${peerId}`);
       if (this.peers.has(peerId)) {
         this.peers.get(peerId)!.destroy();
@@ -98,35 +110,45 @@ export class P2PClient {
       }
     });
 
-    this.socket.on('file-offer', async ({ from, fileInfo }: { from: string; fileInfo: FileMetadata }) => {
-      console.log(`📁 File offer from ${from}:`, fileInfo);
-      if (this.onFileOffer) {
-        const accepted = await this.onFileOffer(from, fileInfo);
-        if (accepted) {
-          this.socket.emit('file-accept', { to: from });
-          this.fileTransfers.set(fileInfo.name, {
-            metadata: fileInfo,
-            chunks: new Array(fileInfo.totalChunks),
-            receivedChunks: 0,
-            progress: 0,
-            fromPeer: from,
-          });
-        } else {
-          this.socket.emit('file-reject', { to: from });
+    this.socket.on(
+      "file-offer",
+      async ({ from, fileInfo }: { from: string; fileInfo: FileMetadata }) => {
+        console.log(`📁 File offer from ${from}:`, fileInfo);
+        if (this.onFileOffer) {
+          const accepted = await this.onFileOffer(from, fileInfo);
+          if (accepted) {
+            this.socket.emit("file-accept", { to: from });
+            this.fileTransfers.set(fileInfo.name, {
+              metadata: fileInfo,
+              chunks: new Array(fileInfo.totalChunks),
+              receivedChunks: 0,
+              progress: 0,
+              fromPeer: from,
+            });
+          } else {
+            this.socket.emit("file-reject", { to: from });
+          }
         }
       }
-    });
+    );
   }
 
-  public register(name: string = 'Anonymous', capabilities: Record<string, any> = {}): void {
-    this.socket.emit('register', { name, capabilities });
+  public register(
+    name: string = "Anonymous",
+    capabilities: Record<string, any> = {}
+  ): void {
+    this.socket.emit("register", { name, capabilities });
   }
 
   public joinRoom(roomId: string): void {
-    this.socket.emit('join-room', roomId);
+    this.socket.emit("join-room", roomId);
   }
 
-  public connectToPeer(peerId: string, initiator: boolean, offer: any = null): SimplePeer.Instance | null {
+  public connectToPeer(
+    peerId: string,
+    initiator: boolean,
+    offer: any = null
+  ): SimplePeer.Instance | null {
     if (this.peers.has(peerId)) {
       return this.peers.get(peerId)!;
     }
@@ -136,41 +158,41 @@ export class P2PClient {
       trickle: true,
       config: {
         iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:global.stun.twilio.com:3478' },
+          { urls: "stun:stun.l.google.com:19302" },
+          { urls: "stun:global.stun.twilio.com:3478" },
         ],
       },
     });
 
-    peer.on('signal', (signal: any) => {
+    peer.on("signal", (signal: any) => {
       if (initiator) {
-        this.socket.emit('signal', { to: peerId, signal });
+        this.socket.emit("signal", { to: peerId, signal });
       } else {
-        this.socket.emit('answer', { to: peerId, answer: signal });
+        this.socket.emit("answer", { to: peerId, answer: signal });
       }
     });
 
-    peer.on('connect', () => {
+    peer.on("connect", () => {
       console.log(`🔗 Connected to peer: ${peerId}`);
       if (this.onPeerConnected) {
         this.onPeerConnected(peerId);
       }
     });
 
-    peer.on('data', (data: Buffer) => {
+    peer.on("data", (data: Buffer) => {
       try {
         const message: PeerMessage = JSON.parse(data.toString());
         this.handlePeerMessage(peerId, message);
       } catch (err) {
-        console.error('Error parsing peer message:', err);
+        console.error("Error parsing peer message:", err);
       }
     });
 
-    peer.on('error', (err: Error) => {
+    peer.on("error", (err: Error) => {
       console.error(`❌ Peer error with ${peerId}:`, err);
     });
 
-    peer.on('close', () => {
+    peer.on("close", () => {
       console.log(`🔌 Peer connection closed: ${peerId}`);
       this.peers.delete(peerId);
     });
@@ -186,30 +208,30 @@ export class P2PClient {
 
   private handlePeerMessage(peerId: string, message: PeerMessage): void {
     switch (message.type) {
-      case 'task':
-        console.log('📋 Received task from peer:', message);
+      case "task":
+        console.log("📋 Received task from peer:", message);
         if (this.onTaskAssigned) {
           this.onTaskAssigned(message as any);
         }
         break;
 
-      case 'result':
-        console.log('✅ Received result from peer:', message);
+      case "result":
+        console.log("✅ Received result from peer:", message);
         if (this.onTaskCompleted) {
           this.onTaskCompleted(message as any);
         }
         break;
 
-      case 'file-chunk':
+      case "file-chunk":
         this.handleFileChunk(peerId, message);
         break;
 
-      case 'file-complete':
+      case "file-complete":
         this.handleFileComplete(message.fileName!);
         break;
 
       default:
-        console.log('❓ Unknown message type:', message);
+        console.log("❓ Unknown message type:", message);
     }
   }
 
@@ -218,17 +240,30 @@ export class P2PClient {
     if (!fileName || !chunk || chunkIndex === undefined) return;
 
     const transfer = this.fileTransfers.get(fileName);
-    if (!transfer) return;
+    if (!transfer) {
+      console.warn(`⚠️ No active transfer found for ${fileName}`);
+      return;
+    }
 
     transfer.chunks[chunkIndex] = chunk as ArrayBuffer;
     transfer.receivedChunks++;
-    transfer.progress = (transfer.receivedChunks / transfer.metadata.totalChunks) * 100;
+    transfer.progress =
+      (transfer.receivedChunks / transfer.metadata.totalChunks) * 100;
 
     if (this.onFileProgress) {
       this.onFileProgress(fileName, transfer.progress);
     }
 
-    console.log(`📦 Received chunk ${chunkIndex + 1}/${transfer.metadata.totalChunks} of ${fileName}`);
+    console.log(
+      `📦 Received chunk ${chunkIndex + 1}/${
+        transfer.metadata.totalChunks
+      } of ${fileName} (${transfer.progress.toFixed(1)}%)`
+    );
+
+    // Check if all chunks received
+    if (transfer.receivedChunks === transfer.metadata.totalChunks) {
+      this.handleFileComplete(fileName);
+    }
   }
 
   private handleFileComplete(fileName: string): void {
@@ -237,7 +272,9 @@ export class P2PClient {
 
     // Reconstruct the file from chunks
     const blob = new Blob(transfer.chunks, { type: transfer.metadata.type });
-    const file = new File([blob], transfer.metadata.name, { type: transfer.metadata.type });
+    const file = new File([blob], transfer.metadata.name, {
+      type: transfer.metadata.type,
+    });
 
     console.log(`✅ File received: ${fileName}`);
 
@@ -263,12 +300,14 @@ export class P2PClient {
     };
 
     // Send file offer through signaling server
-    this.socket.emit('file-offer', { to: peerId, fileInfo });
+    this.socket.emit("file-offer", { to: peerId, fileInfo });
 
     // Wait for acceptance (handled through socket events)
     // In production, you'd want to implement a proper promise-based acceptance flow
 
-    console.log(`📤 Sending file ${file.name} to ${peerId} in ${totalChunks} chunks`);
+    console.log(
+      `📤 Sending file ${file.name} to ${peerId} in ${totalChunks} chunks`
+    );
 
     // Read and send file in chunks
     for (let i = 0; i < totalChunks; i++) {
@@ -277,31 +316,50 @@ export class P2PClient {
       const chunk = file.slice(start, end);
       const arrayBuffer = await chunk.arrayBuffer();
 
+      // Wait for data channel to be ready if needed
+      await this.waitForPeerReady(peer);
+
       const message: PeerMessage = {
-        type: 'file-chunk',
+        type: "file-chunk",
         fileName: file.name,
         chunkIndex: i,
         chunk: arrayBuffer,
       };
 
       // Send via WebRTC data channel
-      peer.send(JSON.stringify({
-        type: 'file-chunk',
-        fileName: file.name,
-        chunkIndex: i,
-      }));
-      
-      // Send actual chunk data
-      peer.send(arrayBuffer);
+      try {
+        peer.send(
+          JSON.stringify({
+            type: "file-chunk",
+            fileName: file.name,
+            chunkIndex: i,
+            totalChunks: totalChunks,
+          })
+        );
+
+        // Small delay to ensure JSON metadata is received first
+        await this.delay(10);
+
+        // Send actual chunk data
+        peer.send(arrayBuffer);
+      } catch (error) {
+        console.error(`Failed to send chunk ${i}:`, error);
+        throw error;
+      }
 
       if (this.onFileProgress) {
         this.onFileProgress(file.name, ((i + 1) / totalChunks) * 100);
+      }
+
+      // Small delay between chunks to prevent overwhelming the connection
+      if (i < totalChunks - 1) {
+        await this.delay(50);
       }
     }
 
     // Send completion message
     const completeMessage: PeerMessage = {
-      type: 'file-complete',
+      type: "file-complete",
       fileName: file.name,
     };
     peer.send(JSON.stringify(completeMessage));
@@ -309,11 +367,23 @@ export class P2PClient {
     console.log(`✅ File ${file.name} sent successfully`);
   }
 
+  private async waitForPeerReady(peer: SimplePeer.Instance): Promise<void> {
+    if (!peer.connected) {
+      throw new Error("Peer not connected");
+    }
+    // Add buffer check if needed
+    return Promise.resolve();
+  }
+
+  private delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
   public submitTask(taskData: any, taskFn?: any): string {
     const taskId = uuidv4();
     this.pendingTasks.set(taskId, { data: taskData, fn: taskFn });
 
-    this.socket.emit('submit-task', {
+    this.socket.emit("submit-task", {
       id: taskId,
       data: taskData,
       function: taskFn?.toString(),
@@ -323,7 +393,7 @@ export class P2PClient {
   }
 
   public sendTaskResult(taskId: string, result: any, to: string): void {
-    this.socket.emit('task-result', {
+    this.socket.emit("task-result", {
       taskId,
       result,
       to,
@@ -362,4 +432,3 @@ export class P2PClient {
     return peer ? peer.connected : false;
   }
 }
-
