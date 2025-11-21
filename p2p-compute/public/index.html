@@ -329,8 +329,9 @@
 
       <div class="card">
         <h2>Connection Status</h2>
-        <div class="network-info" id="networkInfo" style="display: none;">
-          <strong>📡 Network Address:</strong> <code id="serverUrl">http://localhost:3000</code><br>
+        <div class="network-info" id="networkInfo" style="display: none">
+          <strong>📡 Network Address:</strong>
+          <code id="serverUrl">http://localhost:3000</code><br />
           <small>Share this URL with devices on your network to connect!</small>
         </div>
         <div class="status">
@@ -374,18 +375,27 @@
         <div class="card">
           <h2>Send Files to Peers</h2>
           <p style="color: #666; margin-bottom: 15px">
-            Select a peer and drag & drop files or click to select files to send.
+            Select a peer and drag & drop files or click to select files to
+            send.
           </p>
           <div class="input-group">
             <label>Selected Peer:</label>
-            <select id="selectedPeer" style="width: 100%; padding: 12px; border-radius: 8px; border: 2px solid #e0e0e0;">
+            <select
+              id="selectedPeer"
+              style="
+                width: 100%;
+                padding: 12px;
+                border-radius: 8px;
+                border: 2px solid #e0e0e0;
+              "
+            >
               <option value="">-- Select a peer --</option>
             </select>
           </div>
           <div class="file-drop-zone" id="fileDropZone">
-            <p style="font-size: 24px; margin-bottom: 10px;">📁</p>
+            <p style="font-size: 24px; margin-bottom: 10px">📁</p>
             <p>Drag & drop files here or click to select</p>
-            <input type="file" id="fileInput" multiple style="display: none;" />
+            <input type="file" id="fileInput" multiple style="display: none" />
           </div>
           <div class="file-list" id="fileList"></div>
         </div>
@@ -402,7 +412,8 @@
         <div class="card">
           <h2>Submit Compute Task</h2>
           <p style="color: #666; margin-bottom: 15px">
-            Submit a computational task to be distributed across connected peers.
+            Submit a computational task to be distributed across connected
+            peers.
           </p>
           <div class="input-group">
             <label for="taskData">Task Data (JSON Array):</label>
@@ -425,10 +436,8 @@ function(x) { return x * x; }</textarea
           <button id="submitTaskBtn" disabled>Submit Task</button>
 
           <div class="code-example">
-            // Example: Calculate squares
-            data: [1, 2, 3, 4, 5]
-            function: function(x) { return x * x; }
-            result: [1, 4, 9, 16, 25]
+            // Example: Calculate squares data: [1, 2, 3, 4, 5] function:
+            function(x) { return x * x; } result: [1, 4, 9, 16, 25]
           </div>
         </div>
 
@@ -466,8 +475,12 @@ function(x) { return x * x; }</textarea
       // Tab switching
       document.querySelectorAll(".tab").forEach((tab) => {
         tab.addEventListener("click", () => {
-          document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
-          document.querySelectorAll(".tab-content").forEach((c) => c.classList.remove("active"));
+          document
+            .querySelectorAll(".tab")
+            .forEach((t) => t.classList.remove("active"));
+          document
+            .querySelectorAll(".tab-content")
+            .forEach((c) => c.classList.remove("active"));
           tab.classList.add("active");
           const tabName = tab.getAttribute("data-tab");
           document.getElementById(tabName + "Tab").classList.add("active");
@@ -503,9 +516,12 @@ function(x) { return x * x; }</textarea
       submitTaskBtn.addEventListener("click", submitTask);
 
       function connect() {
-        const peerName = document.getElementById("peerName").value || "Anonymous";
-        const serverUrl = document.getElementById("serverUrlInput").value || "http://localhost:3000";
-        
+        const peerName =
+          document.getElementById("peerName").value || "Anonymous";
+        const serverUrl =
+          document.getElementById("serverUrlInput").value ||
+          "http://localhost:3000";
+
         socket = io(serverUrl);
 
         socket.on("connect", () => {
@@ -573,29 +589,43 @@ function(x) { return x * x; }</textarea
       }
 
       function updateStatus(connected) {
-        statusIndicator.className = "status-indicator" + (connected ? " connected" : "");
+        statusIndicator.className =
+          "status-indicator" + (connected ? " connected" : "");
         statusText.textContent = connected ? "Connected" : "Disconnected";
-        connectBtn.textContent = connected ? "Disconnect" : "Connect to Network";
+        connectBtn.textContent = connected
+          ? "Disconnect"
+          : "Connect to Network";
       }
 
       function updatePeersList(peersArray) {
         peerCount.textContent = peersArray.length;
-        
+
         if (peersArray.length === 0) {
-          peersList.innerHTML = '<p style="color: #999;">No peers connected</p>';
-          selectedPeerEl.innerHTML = '<option value="">-- No peers available --</option>';
+          peersList.innerHTML =
+            '<p style="color: #999;">No peers connected</p>';
+          selectedPeerEl.innerHTML =
+            '<option value="">-- No peers available --</option>';
           return;
         }
 
         peersList.innerHTML = peersArray
           .map(
             (peer) => `
-                <div class="peer-card ${peers.has(peer.id) ? "connected" : ""}" data-peer-id="${peer.id}">
+                <div class="peer-card ${
+                  peers.has(peer.id) ? "connected" : ""
+                }" data-peer-id="${peer.id}">
                     <strong>${peer.name}</strong><br>
-                    <small style="color: #999;">${peer.id.substring(0, 8)}...</small>
+                    <small style="color: #999;">${peer.id.substring(
+                      0,
+                      8
+                    )}...</small>
                     <div style="margin-top: 8px;">
-                      <span style="font-size: 12px; color: ${peers.has(peer.id) ? '#4caf50' : '#999'};">
-                        ${peers.has(peer.id) ? '● Connected' : '○ Not Connected'}
+                      <span style="font-size: 12px; color: ${
+                        peers.has(peer.id) ? "#4caf50" : "#999"
+                      };">
+                        ${
+                          peers.has(peer.id) ? "● Connected" : "○ Not Connected"
+                        }
                       </span>
                     </div>
                 </div>
@@ -604,8 +634,17 @@ function(x) { return x * x; }</textarea
           .join("");
 
         // Update peer selection dropdown
-        selectedPeerEl.innerHTML = '<option value="">-- Select a peer --</option>' +
-          peersArray.map(peer => `<option value="${peer.id}">${peer.name} (${peer.id.substring(0, 8)}...)</option>`).join("");
+        selectedPeerEl.innerHTML =
+          '<option value="">-- Select a peer --</option>' +
+          peersArray
+            .map(
+              (peer) =>
+                `<option value="${peer.id}">${peer.name} (${peer.id.substring(
+                  0,
+                  8
+                )}...)</option>`
+            )
+            .join("");
       }
 
       function connectToPeer(peerId, initiator) {
@@ -629,7 +668,12 @@ function(x) { return x * x; }</textarea
         peer.on("connect", () => {
           console.log("Peer connected:", peerId);
           addLog(`Direct P2P connection established with ${peerId}`);
-          updatePeersList(Array.from(peers.values()).map(p => ({ id: p.peerId, name: p.peerName || 'Anonymous' })));
+          updatePeersList(
+            Array.from(peers.values()).map((p) => ({
+              id: p.peerId,
+              name: p.peerName || "Anonymous",
+            }))
+          );
         });
 
         peer.on("data", (data) => {
@@ -651,23 +695,27 @@ function(x) { return x * x; }</textarea
       function handlePeerData(peerId, data) {
         try {
           const message = JSON.parse(data.toString());
-          
-          if (message.type === 'file-metadata') {
+
+          if (message.type === "file-metadata") {
             handleFileOffer(peerId, message.fileInfo);
-          } else if (message.type === 'file-chunk') {
+          } else if (message.type === "file-chunk") {
             // Handle file chunk (simplified for demo)
-            console.log('Received file chunk:', message);
+            console.log("Received file chunk:", message);
           } else {
             handlePeerMessage(peerId, message);
           }
         } catch (err) {
-          console.error('Error handling peer data:', err);
+          console.error("Error handling peer data:", err);
         }
       }
 
       function handleFileOffer(peerId, fileInfo) {
-        const accept = confirm(`${peerId} wants to send you a file:\n${fileInfo.name} (${formatFileSize(fileInfo.size)})\n\nAccept?`);
-        
+        const accept = confirm(
+          `${peerId} wants to send you a file:\n${
+            fileInfo.name
+          } (${formatFileSize(fileInfo.size)})\n\nAccept?`
+        );
+
         if (accept) {
           addLog(`Accepting file ${fileInfo.name} from ${peerId}`);
           // In a full implementation, you'd handle the file transfer here
@@ -693,7 +741,7 @@ function(x) { return x * x; }</textarea
         }
 
         fileList.innerHTML = "";
-        
+
         Array.from(files).forEach((file, index) => {
           const fileItem = document.createElement("div");
           fileItem.className = "file-item";
@@ -708,17 +756,17 @@ function(x) { return x * x; }</textarea
             <button onclick="sendFile(${index})" class="secondary">Send</button>
           `;
           fileList.appendChild(fileItem);
-          
+
           // Store file for sending
           fileItem.fileData = file;
         });
       }
 
-      window.sendFile = function(index) {
+      window.sendFile = function (index) {
         const fileItem = fileList.children[index];
         const file = fileItem.fileData;
         const selectedPeer = selectedPeerEl.value;
-        
+
         if (!peers.has(selectedPeer)) {
           alert("Peer not connected!");
           return;
@@ -734,24 +782,26 @@ function(x) { return x * x; }</textarea
           type: file.type,
         };
 
-        peer.send(JSON.stringify({
-          type: 'file-metadata',
-          fileInfo: fileInfo
-        }));
+        peer.send(
+          JSON.stringify({
+            type: "file-metadata",
+            fileInfo: fileInfo,
+          })
+        );
 
         // Read and send file
         const reader = new FileReader();
-        reader.onload = function(e) {
+        reader.onload = function (e) {
           // Simulate progress
           let progress = 0;
           const interval = setInterval(() => {
             progress += 10;
-            progressBar.style.width = progress + '%';
-            
+            progressBar.style.width = progress + "%";
+
             if (progress >= 100) {
               clearInterval(interval);
               addLog(`File ${file.name} sent to peer!`);
-              
+
               // In a real implementation, you'd chunk and send the actual file data
               // peer.send(e.result);
             }
@@ -761,11 +811,13 @@ function(x) { return x * x; }</textarea
       };
 
       function formatFileSize(bytes) {
-        if (bytes === 0) return '0 Bytes';
+        if (bytes === 0) return "0 Bytes";
         const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const sizes = ["Bytes", "KB", "MB", "GB"];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        return (
+          Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i]
+        );
       }
 
       function submitTask() {
